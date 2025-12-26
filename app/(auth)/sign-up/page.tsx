@@ -1,19 +1,24 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
+import CountrySelectField from "@/components/forms/CountrySelectField";
+import FooterLink from "@/components/forms/FooterLink";
 import InputField from "@/components/forms/InputField";
-import { Button } from "@/components/ui/button";
 import SelectField from "@/components/forms/SelectField";
+import { Button } from "@/components/ui/button";
+import { signUpWithEmail } from "@/lib/actions/auth.actions";
 import {
   INVESTMENT_GOALS,
   PREFERRED_INDUSTRIES,
   RISK_TOLERANCE_OPTIONS,
 } from "@/lib/constants";
-import CountrySelectField from "@/components/forms/CountrySelectField";
-import FooterLink from "@/components/forms/FooterLink";
 
 const SignUp = () => {
+  const router = useRouter();
+
   const {
     control,
     register,
@@ -34,9 +39,19 @@ const SignUp = () => {
 
   const onSubmit = async (data: SignUpFormData) => {
     try {
-      console.log(data);
+      const result = await signUpWithEmail(data);
+
+      if (result.success) {
+        router.push("/");
+      }
     } catch (error) {
       console.error(error);
+      toast.error("Sign up failed", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to create an account",
+      });
     }
   };
 
@@ -47,7 +62,7 @@ const SignUp = () => {
       <form action="" onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <InputField
           name="fullName"
-          label="Full Name"
+          label="Full Name*"
           placeholder="Enter your full name"
           register={register}
           error={errors.fullName}
@@ -56,7 +71,7 @@ const SignUp = () => {
 
         <InputField
           name="email"
-          label="Email"
+          label="Email*"
           placeholder="Enter your email"
           type="email"
           register={register}
@@ -70,7 +85,7 @@ const SignUp = () => {
 
         <InputField
           name="password"
-          label="Password"
+          label="Password*"
           placeholder="Enter your password"
           type="password"
           register={register}
@@ -78,10 +93,10 @@ const SignUp = () => {
           validation={{ required: "Password is required", minLength: 8 }}
         />
 
-        {/* Country select */}
+        {/* TODO: Optimize this its laggy now and flag is not showing in chrome fix this later */}
         <CountrySelectField
           name="country"
-          label="Country"
+          label="Country*"
           control={control}
           error={errors.country}
           required
@@ -89,7 +104,7 @@ const SignUp = () => {
 
         <SelectField
           name="investmentGoals"
-          label="Investment Goals"
+          label="Investment Goals*"
           placeholder="Select your investment goal"
           options={INVESTMENT_GOALS}
           control={control}
@@ -99,7 +114,7 @@ const SignUp = () => {
 
         <SelectField
           name="riskTolerance"
-          label="Risk Tolerance"
+          label="Risk Tolerance*"
           placeholder="Select your risk level"
           options={RISK_TOLERANCE_OPTIONS}
           control={control}
@@ -109,7 +124,7 @@ const SignUp = () => {
 
         <SelectField
           name="preferredIndustry"
-          label="Preferred Industry"
+          label="Preferred Industry*"
           placeholder="Select your preferred industry"
           options={PREFERRED_INDUSTRIES}
           control={control}

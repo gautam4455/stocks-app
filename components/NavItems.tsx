@@ -7,7 +7,6 @@ import { NAV_ITEMS } from "@/lib/constants";
 
 const NavItems = () => {
   const pathname = usePathname();
-  console.log("pathname", pathname);
 
   const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
