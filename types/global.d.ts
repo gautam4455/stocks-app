@@ -20,6 +20,7 @@ declare global {
     control: Control;
     error?: FieldError;
     required?: boolean;
+    disabled?: boolean;
   };
 
   type FormInputProps = {
@@ -47,6 +48,7 @@ declare global {
     control: Control;
     error?: FieldError;
     required?: boolean;
+    disabled?: boolean;
   };
 
   type FooterLinkProps = {
@@ -150,6 +152,12 @@ declare global {
 
   type AlertsListProps = {
     alertData: Alert[] | undefined;
+  };
+
+  type UserForNewsEmail = {
+    id: string;
+    email: string;
+    name: string;
   };
 
   type MarketNewsArticle = {

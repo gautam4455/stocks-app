@@ -18,6 +18,7 @@ const InputField = ({
       <Label htmlFor={name} className="form-label">
         {label}
       </Label>
+
       <Input
         type={type}
         id={name}
@@ -29,6 +30,7 @@ const InputField = ({
         })}
         {...register(name, validation)}
       />
+
       {error && <p className="text-sm text-red-500">{error.message}</p>}
     </div>
   );

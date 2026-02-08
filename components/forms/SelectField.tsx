@@ -1,4 +1,5 @@
 import { Controller } from "react-hook-form";
+
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -16,6 +17,7 @@ const SelectField = ({
   control,
   error,
   required = false,
+  disabled = false,
 }: SelectFieldProps) => {
   return (
     <div className="space-y-2">
@@ -30,10 +32,15 @@ const SelectField = ({
           required: required ? `Please select ${label.toLowerCase()}` : false,
         }}
         render={({ field }) => (
-          <Select value={field.value} onValueChange={field.onChange}>
+          <Select
+            value={field.value}
+            onValueChange={field.onChange}
+            disabled={disabled}
+          >
             <SelectTrigger className="select-trigger">
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
+
             <SelectContent className="bg-gray-800 border-gray-600 text-white">
               {options.map((option) => (
                 <SelectItem
@@ -45,6 +52,7 @@ const SelectField = ({
                 </SelectItem>
               ))}
             </SelectContent>
+
             {error && <p className="text-sm text-red-500">{error.message}</p>}
           </Select>
         )}

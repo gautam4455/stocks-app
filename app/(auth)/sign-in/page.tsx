@@ -1,5 +1,6 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -8,6 +9,11 @@ import FooterLink from "@/components/forms/FooterLink";
 import InputField from "@/components/forms/InputField";
 import { Button } from "@/components/ui/button";
 import { signInWithEmail } from "@/lib/actions/auth.actions";
+import {
+  signinDefaultValues,
+  SigninSchema,
+  SigninSchemaType,
+} from "./signinSchema";
 
 const SignIn = () => {
   const router = useRouter();
@@ -16,17 +22,19 @@ const SignIn = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<SignUpFormData>({
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-    mode: "onBlur",
+  } = useForm<SigninSchemaType>({
+    defaultValues: signinDefaultValues,
+    resolver: zodResolver(SigninSchema),
+    mode: "onTouched",
   });
 
   const onSubmit = async (data: SignInFormData) => {
     try {
       const result = await signInWithEmail(data);
+
+      if (!result.success) {
+        toast.error("Sign in failed", { description: result.error });
+      }
 
       if (result.success) {
         router.push("/");
@@ -52,11 +60,7 @@ const SignIn = () => {
           type="email"
           register={register}
           error={errors.email}
-          validation={{
-            required: "Email is required",
-            pattern: /^\w+@\w+\.\w+/,
-            message: "Email address is required",
-          }}
+          disabled={isSubmitting}
         />
 
         <InputField
@@ -66,7 +70,7 @@ const SignIn = () => {
           type="password"
           register={register}
           error={errors.password}
-          validation={{ required: "Password is required", minLength: 8 }}
+          disabled={isSubmitting}
         />
 
         <Button

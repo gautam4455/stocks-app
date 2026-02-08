@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { Controller } from "react-hook-form";
 import countryList from "react-select-country-list";
@@ -23,14 +23,16 @@ import { cn } from "@/lib/utils";
 const CountrySelect = ({
   value,
   onChange,
+  disabled,
 }: {
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
 
   // Get country options with flags
-  const countries = countryList().getData();
+  const countries = useMemo(() => countryList().getData(), []);
 
   // Helper function to get flag emoji
   const getFlagEmoji = (countryCode: string) => {
@@ -49,6 +51,7 @@ const CountrySelect = ({
           role="combobox"
           aria-expanded={open}
           className="country-select-trigger"
+          disabled={disabled}
         >
           {value ? (
             <span className="flex items-center gap-2">
@@ -61,6 +64,7 @@ const CountrySelect = ({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
+
       <PopoverContent
         className="w-full p-0 bg-gray-800 border-gray-600"
         align="start"
@@ -70,9 +74,11 @@ const CountrySelect = ({
             placeholder="Search countries..."
             className="country-select-input"
           />
+
           <CommandEmpty className="country-select-empty">
             No country found.
           </CommandEmpty>
+
           <CommandList className="max-h-60 bg-gray-800 scrollbar-hide-default">
             <CommandGroup className="bg-gray-800">
               {countries.map((country) => (
@@ -88,11 +94,13 @@ const CountrySelect = ({
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4 text-yellow-500",
-                      value === country.value ? "opacity-100" : "opacity-0"
+                      value === country.value ? "opacity-100" : "opacity-0",
                     )}
                   />
+
                   <span className="flex items-center gap-2">
                     <span>{getFlagEmoji(country.value)}</span>
+
                     <span>{country.label}</span>
                   </span>
                 </CommandItem>
@@ -111,12 +119,14 @@ const CountrySelectField = ({
   control,
   error,
   required = false,
+  disabled = false,
 }: CountrySelectProps) => {
   return (
     <div className="space-y-2">
       <Label htmlFor={name} className="form-label">
         {label}
       </Label>
+
       <Controller
         name={name}
         control={control}
@@ -124,10 +134,16 @@ const CountrySelectField = ({
           required: required ? `Please select ${label.toLowerCase()}` : false,
         }}
         render={({ field }) => (
-          <CountrySelect value={field.value} onChange={field.onChange} />
+          <CountrySelect
+            value={field.value}
+            onChange={field.onChange}
+            disabled={disabled}
+          />
         )}
       />
+
       {error && <p className="text-sm text-red-500">{error.message}</p>}
+
       <p className="text-xs text-gray-500">
         Helps us show market data and news relevant to you.
       </p>

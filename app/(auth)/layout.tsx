@@ -6,9 +6,15 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/better-auth/auth";
 
 const Layout = async ({ children }: { children: React.ReactNode }) => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  let session = null;
+  try {
+    session = await auth.api.getSession({
+      headers: await headers(),
+    });
+  } catch (error) {
+    console.error("Failed to get session in auth layout", error);
+    session = null;
+  }
 
   if (session?.user) {
     redirect("/");
