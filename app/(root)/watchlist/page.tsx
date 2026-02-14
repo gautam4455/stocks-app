@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Star } from "lucide-react";
 
 import SearchCommand from "@/components/SearchCommand";
@@ -37,8 +39,8 @@ const Watchlist = async () => {
 
           <SearchCommand initialStocks={initialStocks} />
         </div>
- 
-        <WatchlistTable watchlist={watchlist} />
+
+        <WatchlistTable watchlist={watchlist || []} />
       </div>
     </section>
   );
