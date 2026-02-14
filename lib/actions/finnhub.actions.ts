@@ -1,8 +1,20 @@
 "use server";
 
-import { getDateRange, validateArticle, formatArticle } from "@/lib/utils";
-import { POPULAR_STOCK_SYMBOLS } from "@/lib/constants";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { cache } from "react";
+
+import { POPULAR_STOCK_SYMBOLS } from "@/lib/constants";
+import {
+  formatArticle,
+  formatChangePercent,
+  formatMarketCapValue,
+  formatPrice,
+  getDateRange,
+  validateArticle,
+} from "@/lib/utils";
+import { auth } from "../better-auth/auth";
+import { getWatchlistSymbolsByEmail } from "./watchlist.actions";
 
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 const NEXT_PUBLIC_FINNHUB_API_KEY =
@@ -10,7 +22,7 @@ const NEXT_PUBLIC_FINNHUB_API_KEY =
 
 async function fetchJSON<T>(
   url: string,
-  revalidateSeconds?: number
+  revalidateSeconds?: number,
 ): Promise<T> {
   const options: RequestInit & { next?: { revalidate?: number } } =
     revalidateSeconds
@@ -28,7 +40,7 @@ async function fetchJSON<T>(
 export { fetchJSON };
 
 export async function getNews(
-  symbols?: string[]
+  symbols?: string[],
 ): Promise<MarketNewsArticle[]> {
   try {
     const range = getDateRange(5);
@@ -50,7 +62,7 @@ export async function getNews(
         cleanSymbols.map(async (sym) => {
           try {
             const url = `${FINNHUB_BASE_URL}/company-news?symbol=${encodeURIComponent(
-              sym
+              sym,
             )}&from=${range.from}&to=${range.to}&token=${token}`;
             const articles = await fetchJSON<RawNewsArticle[]>(url, 300);
             perSymbolArticles[sym] = (articles || []).filter(validateArticle);
@@ -58,7 +70,7 @@ export async function getNews(
             console.error("Error fetching company news for", sym, e);
             perSymbolArticles[sym] = [];
           }
-        })
+        }),
       );
 
       const collected: MarketNewsArticle[] = [];
@@ -112,12 +124,21 @@ export async function getNews(
 export const searchStocks = cache(
   async (query?: string): Promise<StockWithWatchlistStatus[]> => {
     try {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
+      if (!session?.user) redirect("sign-in");
+
+      const userWatchlistSymbols = await getWatchlistSymbolsByEmail(
+        session.user.email,
+      );
+
       const token = process.env.FINNHUB_API_KEY ?? NEXT_PUBLIC_FINNHUB_API_KEY;
       if (!token) {
         // If no token, log and return empty to avoid throwing per requirements
         console.error(
           "Error in stock search:",
-          new Error("FINNHUB API key is not configured")
+          new Error("FINNHUB API key is not configured"),
         );
         return [];
       }
@@ -133,7 +154,7 @@ export const searchStocks = cache(
           top.map(async (sym) => {
             try {
               const url = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${encodeURIComponent(
-                sym
+                sym,
               )}&token=${token}`;
               // Revalidate every hour
               const profile = await fetchJSON<any>(url, 3600);
@@ -142,7 +163,7 @@ export const searchStocks = cache(
               console.error("Error fetching profile2 for", sym, e);
               return { sym, profile: null } as { sym: string; profile: any };
             }
-          })
+          }),
         );
 
         results = profiles
@@ -167,7 +188,7 @@ export const searchStocks = cache(
           .filter((x): x is FinnhubSearchResult => Boolean(x));
       } else {
         const url = `${FINNHUB_BASE_URL}/search?q=${encodeURIComponent(
-          trimmed
+          trimmed,
         )}&token=${token}`;
         const data = await fetchJSON<FinnhubSearchResponse>(url, 1800);
         results = Array.isArray(data?.result) ? data.result : [];
@@ -189,7 +210,9 @@ export const searchStocks = cache(
             name,
             exchange,
             type,
-            isInWatchlist: false,
+            isInWatchlist: userWatchlistSymbols.includes(
+              r.symbol.toUpperCase(),
+            ),
           };
           return item;
         })
@@ -200,5 +223,57 @@ export const searchStocks = cache(
       console.error("Error in stock search:", err);
       return [];
     }
-  }
+  },
 );
+
+// Fetch stock details by symbol
+export const getStocksDetails = cache(async (symbol: string) => {
+  const cleanSymbol = symbol.trim().toUpperCase();
+
+  try {
+    const [quote, profile, financials] = await Promise.all([
+      fetchJSON(
+        // Price data - no caching for accuracy
+        `${FINNHUB_BASE_URL}/quote?symbol=${cleanSymbol}&token=${NEXT_PUBLIC_FINNHUB_API_KEY}`,
+      ),
+      fetchJSON(
+        // Company info - cache 1hr (rarely changes)
+        `${FINNHUB_BASE_URL}/stock/profile2?symbol=${cleanSymbol}&token=${NEXT_PUBLIC_FINNHUB_API_KEY}`,
+        3600,
+      ),
+      fetchJSON(
+        // Financial metrics (P/E, etc.) - cache 30min
+        `${FINNHUB_BASE_URL}/stock/metric?symbol=${cleanSymbol}&metric=all&token=${NEXT_PUBLIC_FINNHUB_API_KEY}`,
+        1800,
+      ),
+    ]);
+
+    // Type cast the responses
+    const quoteData = quote as QuoteData;
+    const profileData = profile as ProfileData;
+    const financialsData = financials as FinancialsData;
+
+    // Check if we got valid quote and profile data
+    if (!quoteData?.c || !profileData?.name)
+      throw new Error("Invalid stock data received from API");
+
+    const changePercent = quoteData.dp || 0;
+    const peRatio = financialsData?.metric?.peNormalizedAnnual || null;
+
+    return {
+      symbol: cleanSymbol,
+      company: profileData?.name,
+      currentPrice: quoteData.c,
+      changePercent,
+      priceFormatted: formatPrice(quoteData.c),
+      changeFormatted: formatChangePercent(changePercent),
+      peRatio: peRatio?.toFixed(1) || "—",
+      marketCapFormatted: formatMarketCapValue(
+        profileData?.marketCapitalization || 0,
+      ),
+    };
+  } catch (error) {
+    console.error(`Error fetching details for ${cleanSymbol}:`, error);
+    throw new Error("Failed to fetch stock details");
+  }
+});
